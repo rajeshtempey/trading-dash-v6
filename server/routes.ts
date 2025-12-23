@@ -14,6 +14,7 @@ import { fetchRealCandles, fetchRealMarketData, startRealDataUpdates, getCachedP
 import { generateMLPredictions, getSignalBoost } from "./ml-engine";
 import { calculateSignalBoost } from "./signal-boosters";
 import { generateShiraV6Signal } from "./shira-v6-engine";
+import { getCachedIndicators, setCachedIndicators } from "./indicator-cache";
 import type { Asset, Candle, WebSocketMessage } from "@shared/schema";
 
 interface ClientSubscription {
@@ -196,7 +197,12 @@ export async function registerRoutes(
     const aggregated = aggregateCandles(candles, subscription.timeframe);
     const sendCandles = aggregated.length > 0 ? aggregated : candles;
 
-    const indicators = generateIndicators(sendCandles);
+    // Use cached indicators if available
+    let indicators = getCachedIndicators(asset, subscription.timeframe);
+    if (!indicators) {
+      indicators = generateIndicators(sendCandles);
+      setCachedIndicators(asset, subscription.timeframe, indicators);
+    }
     const condition = generateCondition(indicators);
     const marketData = generateMarketData(asset, sendCandles);
     
@@ -297,6 +303,7 @@ export async function registerRoutes(
   }
 
   // Real-time updates: Fetch new candles and broadcast every 60 seconds
+  // (Secondary fast updates every 10 seconds for real-time indicators/signals)
   setInterval(async () => {
     for (const asset of ASSETS) {
       try {
@@ -335,8 +342,13 @@ export async function registerRoutes(
           const sendSubCandles = subAggregated.length > 0 ? subAggregated : subCandles;
           const latest = sendSubCandles[sendSubCandles.length - 1] || rawLatest;
 
-          // Compute indicators and condition on aggregated set
-          const subIndicators = generateIndicators(sendSubCandles);
+          // Use cached indicators if available (prevents fluctuation)
+          let subIndicators = getCachedIndicators(asset, subscription.timeframe);
+          if (!subIndicators) {
+            subIndicators = generateIndicators(sendSubCandles);
+            setCachedIndicators(asset, subscription.timeframe, subIndicators);
+          }
+          
           const subCondition = generateCondition(subIndicators);
           const subMarketData = generateMarketData(asset, sendSubCandles);
 

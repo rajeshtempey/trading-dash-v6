@@ -4,10 +4,10 @@ import type { Asset, Candle, MarketData } from "@shared/schema";
 const BINANCE_API = "https://api.binance.com/api/v3";
 
 const SYMBOL_MAP: Record<Asset, string> = {
-  SOL: "SOLusdt",
+  SOL: "SOLUSDT",
   BTC: "BTCUSDT",
   ETH: "ETHUSDT",
-  XAU: "AUDUSD", // Gold traded as commodity, fallback
+  XAU: "PAXGUSDT", // Gold-backed crypto token
 };
 
 // Fetch current price from Binance

@@ -96,13 +96,12 @@ export function TradingChart({
     emaStateRef.current = { ema8: 0, ema34: 0 };
   }, [timeframe]);
 
-  // Handle responsive resizing
+  // Handle responsive resizing - including container size changes from side panels
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current && chartRef.current) {
         const width = containerRef.current.clientWidth;
         let height = window.innerWidth < 768 ? 300 : window.innerWidth < 1024 ? 400 : 500;
-        // no-op
         // if requested, fill parent container height
         if ((fillParent) && containerRef.current) {
           const parent = containerRef.current.parentElement;
@@ -113,14 +112,37 @@ export function TradingChart({
         }
         setChartSize({ width, height });
         chartRef.current.applyOptions({ width, height });
+        
+        // Fit content to new viewport when resizing (panel opens/closes)
+        // This prevents cropping when side panel toggles
+        if (candles.length > 0) {
+          setTimeout(() => {
+            if (chartRef.current) {
+              chartRef.current.timeScale().fitContent();
+            }
+          }, 0);
+        }
       }
     };
+
+    // Use ResizeObserver to detect container size changes (panel open/close)
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
 
     window.addEventListener("resize", handleResize);
     // small timeout to allow layout to settle
     setTimeout(handleResize, 50);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [fillParent]);
+    
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
+    };
+  }, [fillParent, candles.length]);
 
   useEffect(() => {
     if (!containerRef.current || chartRef.current) return;
